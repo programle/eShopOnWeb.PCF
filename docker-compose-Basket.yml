@@ -1,0 +1,22 @@
+version: '3.4'
+
+services:
+
+  sql.data:
+    image: microsoft/mssql-server-linux:2017-latest
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+
+  # basket.api:
+    # image: eshop/basket.api:${TAG:-latest}
+    # build:
+      # context: .
+      # dockerfile: src/Services/Basket/Basket.API/Dockerfile
+    # depends_on:
+      # - sql.data
+      # - eurekareg
+      # - rabbitmq    
+
+  eurekareg:
+    image: steeltoeoss/eurekaserver

@@ -1,9 +1,7 @@
 version: '3.4'
 
 services:
-  cache:
-    image: redis
-    command: redis-server --requirepass testPassword
+
   sql.data:
     image: microsoft/mssql-server-linux:2017-latest
 
@@ -23,6 +21,15 @@ services:
       - eurekareg
       - rabbitmq    
 
+  basket.api:
+    image: eshop/basket.api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/Basket/Basket.API/Dockerfile
+    depends_on:
+      - sql.data
+      - eurekareg
+      - rabbitmq 
   web:
     image: eshop/web:${TAG:-latest}
     build:
@@ -31,4 +38,3 @@ services:
     depends_on:
       - sql.data
       - eurekareg
-

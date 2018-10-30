@@ -7,9 +7,7 @@ services:
       - ACCEPT_EULA=Y
     ports:
       - "5433:1433"   
-  cache:
-    ports: 
-      - "6379:6379"
+
   rabbitmq:
     ports:
       - "15672:15672" 
@@ -33,8 +31,29 @@ services:
       - ApplicationInsights__InstrumentationKey=${INSTRUMENTATION_KEY}
       - OrchestratorType=${ORCHESTRATOR_TYPE}
     ports:
-      - "5101:80"   # Important: In a production environment your should remove the external port (5101) kept here for microservice debugging purposes. 
-                    # The API Gateway redirects and access through the internal port (80).
+       - "5101:80"   
+       # Important: In a production environment your should remove the external port (5101) kept here for microservice debugging purposes. 
+       # # The API Gateway redirects and access through the internal port (80).
+
+  basket.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:80
+      - SqlServer__credentials__ConnectionString=Server=sql.data;Database=Microsoft.eShopOnContainers.Services.BasketDb;User Id=sa;Password=Pass@word
+      - PicBaseUrl=http://localhost:5102/api/v1/basket/items/[0]/pic/   #Local: You need to open your local dev-machine firewall at range 5100-5110.  
+      - rabbitmq__client__uri=amqp://guest:guest@rabbitmq:5672/
+      - eureka__client__serviceUrl=http://eurekareg:8761/eureka
+      - UseCustomizationData=True
+      - AzureServiceBusEnabled=False
+      - AzureStorageEnabled=False
+      - ApplicationInsights__InstrumentationKey=${INSTRUMENTATION_KEY}
+      - OrchestratorType=${ORCHESTRATOR_TYPE}
+    ports:
+      - "5102:80"   
+     # Important: In a production environment your should remove the external port (5101) kept here for microservice debugging purposes. 
+     # ports:
+       # - "5102:80"   # Important: In a production environment your should remove the external port (5102) kept here for microservice debugging purposes. 
+                    # # The API Gateway redirects and access through the internal port (80).
 
   web:
     environment:

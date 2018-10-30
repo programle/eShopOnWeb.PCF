@@ -1,0 +1,9 @@
+---
+applications:
+- name: eshop-catalog-api
+  instances: 1
+  path: Catalog.API/bin/Debug/netcoreapp2.1/publish
+  services:
+  - Eureka
+  - RabbitMQ
+  - eshop-rds-sqlserver

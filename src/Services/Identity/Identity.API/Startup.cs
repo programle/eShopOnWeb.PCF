@@ -7,25 +7,18 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-//using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.eShopOnContainers.Services.Identity.API.Certificates;
 using Microsoft.eShopOnContainers.Services.Identity.API.Data;
 using Microsoft.eShopOnContainers.Services.Identity.API.Models;
 using Microsoft.eShopOnContainers.Services.Identity.API.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-//using Microsoft.Extensions.HealthChecks;
+using Microsoft.Extensions.HealthChecks;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System;
 using System.Reflection;
-using Steeltoe.CloudFoundry.Connector.SqlServer.EFCore;
-using Steeltoe.Management.CloudFoundry;
-using Steeltoe.Management.Endpoint.CloudFoundry;
-using Steeltoe.Common.HealthChecks;
-using Steeltoe.Management.Endpoint.Info;
-using Pivotal.Discovery.Client;
 
 namespace Microsoft.eShopOnContainers.Services.Identity.API
 {
@@ -44,7 +37,14 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
             RegisterAppInsights(services);
 
             // Add framework services.
-            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(Configuration));
+            services.AddDbContext<ApplicationDbContext>(options =>
+             options.UseSqlServer(Configuration["ConnectionString"],
+                                     sqlServerOptionsAction: sqlOptions =>
+                                     {
+                                         sqlOptions.MigrationsAssembly(typeof(Startup).GetTypeInfo().Assembly.GetName().Name);
+                                         //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
+                                         sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
+                                     }));
 
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -53,8 +53,6 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
             services.Configure<AppSettings>(Configuration);
 
             services.AddMvc();
-            services.AddDiscoveryClient(Configuration);                
-
 
             if (Configuration.GetValue<string>("IsClusterEnv") == bool.TrueString)
             {
@@ -65,21 +63,21 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                 .PersistKeysToRedis(ConnectionMultiplexer.Connect(Configuration["DPConnectionString"]), "DataProtection-Keys");
             }
 
-            // services.AddHealthChecks(checks =>
-            // {
-            //     var minutes = 1;
-            //     if (int.TryParse(Configuration["HealthCheck:Timeout"], out var minutesParsed))
-            //     {
-            //         minutes = minutesParsed;
-            //     }
-            //     checks.AddSqlCheck("Identity_Db", Configuration["ConnectionString"], TimeSpan.FromMinutes(minutes));
-            // });
+            services.AddHealthChecks(checks =>
+            {
+                var minutes = 1;
+                if (int.TryParse(Configuration["HealthCheck:Timeout"], out var minutesParsed))
+                {
+                    minutes = minutesParsed;
+                }
+                checks.AddSqlCheck("Identity_Db", Configuration["ConnectionString"], TimeSpan.FromMinutes(minutes));
+            });
 
             services.AddTransient<ILoginService<ApplicationUser>, EFLoginService>();
             services.AddTransient<IRedirectService, RedirectService>();
 
-            //var connectionString = Configuration["ConnectionString"];
-            //var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
+            var connectionString = Configuration["ConnectionString"];
+            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             // Adds IdentityServer
             services.AddIdentityServer(x =>
@@ -90,17 +88,26 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
             .AddSigningCredential(Certificate.Get())
             .AddAspNetIdentity<ApplicationUser>()
             .AddConfigurationStore(options =>
-                {
-                    options.ConfigureDbContext = builder => builder.UseSqlServer(Configuration);
-                })
+            {
+                options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString,
+                                    sqlServerOptionsAction: sqlOptions =>
+                                    {
+                                        sqlOptions.MigrationsAssembly(migrationsAssembly);
+                                        //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
+                                        sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
+                                    });
+            })
             .AddOperationalStore(options =>
                 {
-                    options.ConfigureDbContext = builder => builder.UseSqlServer(Configuration);
+                    options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString,
+                                    sqlServerOptionsAction: sqlOptions =>
+                                    {
+                                        sqlOptions.MigrationsAssembly(migrationsAssembly);
+                                        //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
+                                        sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
+                                    });
                 })
-            .AddSwagger()
             .Services.AddTransient<IProfileService, ProfileService>();
-
-            services.AddCloudFoundryActuators(Configuration);
 
             var container = new ContainerBuilder();
             container.Populate(services);
@@ -158,14 +165,6 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
-            app.UseCloudFoundryActuators();
-            app.UseDiscoveryClient();
-
-            app.UseSwagger()
-              .UseSwaggerUI(c =>
-              {
-                  c.SwaggerEndpoint($"{ (!string.IsNullOrEmpty(pathBase) ? pathBase : string.Empty) }/swagger/v1/swagger.json", "Identity.API V1");
-              });
         }
 
         private void RegisterAppInsights(IServiceCollection services)
@@ -184,27 +183,6 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                 services.AddSingleton<ITelemetryInitializer>((serviceProvider) =>
                     new FabricTelemetryInitializer());
             }
-        }
-    }
-
-    public static class CustomExtensionMethods
-    {
-        public static IServiceCollection AddSwagger(this IServiceCollection services)
-        {
-            services.AddSwaggerGen(options =>
-            {
-                options.DescribeAllEnumsAsStrings();
-                options.SwaggerDoc("v1", new Swashbuckle.AspNetCore.Swagger.Info
-                {
-                    Title = "eShopOnContainers - Identity HTTP API",
-                    Version = "v1",
-                    Description = "The Identity Microservice HTTP API. This is a Data-Driven/CRUD microservice sample",
-                    TermsOfService = "Terms Of Service"
-                });
-            });
-
-            return services;
-
         }
     }
 }
