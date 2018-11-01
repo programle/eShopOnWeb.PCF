@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 
 namespace Microsoft.eShopOnContainers.Services.Basket.API.Controllers
 {
-    [Route("api/v1/[controller]")]
-    [Authorize]
-    public class BasketController : Controller
+    [Route("api/v1/basket")]
+    [ApiController]
+    public class BasketController : ControllerBase
     {
         private readonly IBasketRepository _repository;
         private readonly IIdentityService _identitySvc;
@@ -59,11 +59,11 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API.Controllers
         public async Task<IActionResult> Checkout([FromBody]BasketCheckout basketCheckout, [FromHeader(Name = "x-requestid")] string requestId)
         {
             var userId = _identitySvc.GetUserIdentity();
-            
+
 
             basketCheckout.RequestId = (Guid.TryParse(requestId, out Guid guid) && guid != Guid.Empty) ?
                 guid : basketCheckout.RequestId;
-
+            
             var basket = await _repository.GetBasketAsync(userId);
 
             if (basket == null)
@@ -76,11 +76,12 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API.Controllers
             var eventMessage = new UserCheckoutAcceptedIntegrationEvent(userId, userName, basketCheckout.City, basketCheckout.Street,
                 basketCheckout.State, basketCheckout.Country, basketCheckout.ZipCode, basketCheckout.CardNumber, basketCheckout.CardHolderName,
                 basketCheckout.CardExpiration, basketCheckout.CardSecurityNumber, basketCheckout.CardTypeId, basketCheckout.Buyer, basketCheckout.RequestId, basket);
+            // basketCheckout.CardExpiration, basketCheckout.CardSecurityNumber, basketCheckout.CardTypeId, basketCheckout.Buyer, basketCheckout.RequestId,  basket  );
 
             // Once basket is checkout, sends an integration event to
             // ordering.api to convert basket to order and proceeds with
             // order creation process
-            _eventBus.Publish(eventMessage);            
+            _eventBus.Publish(eventMessage);
 
             return Accepted();
         }

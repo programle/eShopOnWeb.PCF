@@ -7,7 +7,9 @@ services:
       - ACCEPT_EULA=Y
     ports:
       - "5433:1433"   
-
+  redis:
+    ports: 
+      - "6379:6379"
   rabbitmq:
     ports:
       - "15672:15672" 
@@ -18,20 +20,20 @@ services:
       - "8761:8761"
 
   catalog.api:
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://0.0.0.0:80
-      - SqlServer__credentials__ConnectionString=Server=sql.data;Database=Microsoft.eShopOnContainers.Services.CatalogDb;User Id=sa;Password=Pass@word
-      - PicBaseUrl=http://localhost:5101/api/v1/catalog/items/[0]/pic/   #Local: You need to open your local dev-machine firewall at range 5100-5110.  
-      - rabbitmq__client__uri=amqp://guest:guest@rabbitmq:5672/
-      - eureka__client__serviceUrl=http://eurekareg:8761/eureka
-      - UseCustomizationData=True
-      - AzureServiceBusEnabled=False
-      - AzureStorageEnabled=False
-      - ApplicationInsights__InstrumentationKey=${INSTRUMENTATION_KEY}
-      - OrchestratorType=${ORCHESTRATOR_TYPE}
-    ports:
-       - "5101:80"   
+   environment:
+     - ASPNETCORE_ENVIRONMENT=Development
+     - ASPNETCORE_URLS=http://0.0.0.0:80
+     - SqlServer__credentials__ConnectionString=Server=sql.data;Database=Microsoft.eShopOnContainers.Services.CatalogDb;User Id=sa;Password=Pass@word
+     - PicBaseUrl=http://localhost:5101/api/v1/catalog/items/[0]/pic/   #Local: You need to open your local dev-machine firewall at range 5100-5110.  
+     - rabbitmq__client__uri=amqp://guest:guest@rabbitmq:5672/
+     - eureka__client__serviceUrl=http://eurekareg:8761/eureka
+     - UseCustomizationData=True
+     - AzureServiceBusEnabled=False
+     - AzureStorageEnabled=False
+     - ApplicationInsights__InstrumentationKey=${INSTRUMENTATION_KEY}
+     - OrchestratorType=${ORCHESTRATOR_TYPE}
+   ports:
+      - "5101:80"   
        # Important: In a production environment your should remove the external port (5101) kept here for microservice debugging purposes. 
        # # The API Gateway redirects and access through the internal port (80).
 

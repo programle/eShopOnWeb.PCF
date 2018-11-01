@@ -1,4 +1,5 @@
 ﻿using Autofac;
+using Microsoft.eShopOnContainers.Services.Basket.API.Model;
 using Autofac.Extensions.DependencyInjection;
 using global::Basket.API.Infrastructure.Filters;
 using global::Basket.API.IntegrationEvents;
@@ -7,6 +8,7 @@ using Microsoft.ApplicationInsights.ServiceFabric;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Redis;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.ServiceBus;
 //using Microsoft.EntityFrameworkCore;
@@ -29,12 +31,15 @@ using System.Data.Common;
 using System.Reflection;
 using Steeltoe.CloudFoundry.Connector.SqlServer.EFCore;
 using Steeltoe.Management.CloudFoundry;
+using Steeltoe.CloudFoundry.Connector.Redis;
 using Steeltoe.Management.Endpoint.CloudFoundry;
 using Steeltoe.Common.HealthChecks;
 using Steeltoe.Management.Endpoint.Info;
 using Steeltoe.CloudFoundry.Connector.RabbitMQ;
 using Basket.API.IntegrationEvents.Events;
 using Basket.API.IntegrationEvents.EventHandling;
+using StackExchange.Redis;
+using Microsoft.eShopOnContainers.Services.Basket.API.Services;
 
 namespace Microsoft.eShopOnContainers.Services.Basket.API
 {
@@ -49,13 +54,45 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API
 
         public IServiceProvider ConfigureServices(IServiceCollection services)
         {
-            services.AddAppInsight(Configuration)
+
+
+            services
+                //.AddAppInsight(Configuration)
                 .AddCustomMVC(Configuration)
                 .AddCustomOptions(Configuration)
                 .AddEventBus(Configuration)
                 .AddDiscoveryClient(Configuration)
                 .AddRabbitMQConnection(Configuration)
+                .AddDistributedRedisCache(Configuration)
+                .AddRedisConnectionMultiplexer(Configuration)
                 .AddSwagger();
+
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddTransient<IBasketRepository, RedisBasketRepository>();
+            services.AddTransient<IIdentityService, IdentityService>();
+
+
+            services.AddSingleton<ConnectionMultiplexer>(sp =>
+            {
+                var settings = sp.GetRequiredService<IOptions<BasketSettings>>().Value;
+                //var configuration = ConfigurationOptions.Parse(settings, true);
+
+                //ConfigurationOptions redisconfig = new ConfigurationOptions
+                //{
+                //    ServiceName = "redis",
+                //    EndPoints =
+                //        {
+                //            { "localhost", 6379 }
+                //        },
+                //    Password = "testPassword"
+                //};
+
+                ////configuration.ResolveDns = true;
+
+                //return ConnectionMultiplexer.Connect(redisconfig);
+                return ConnectionMultiplexer.Connect(Configuration.GetValue<string>("redis:client:connectionString"));
+            });
+
 
             services.AddCloudFoundryActuators(Configuration);
 
@@ -70,7 +107,7 @@ namespace Microsoft.eShopOnContainers.Services.Basket.API
             //Configure logs
 
             loggerFactory.AddAzureWebAppDiagnostics();
-            loggerFactory.AddApplicationInsights(app.ApplicationServices, LogLevel.Trace);
+            //loggerFactory.AddApplicationInsights(app.ApplicationServices, LogLevel.Trace);
 
             var pathBase = Configuration["PATH_BASE"];
 
