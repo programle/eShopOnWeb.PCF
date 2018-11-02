@@ -1,0 +1,24 @@
+version: '3.4'
+
+services:
+  sql.data:
+    environment:
+      - SA_PASSWORD=Pass@word
+      - ACCEPT_EULA=Y
+    ports:
+      - "5433:1433"   
+
+  identity.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:80
+      - MvcClient=http://localhost:5100
+      - ConnectionString=Server=sql.data;Database=Microsoft.eShopOnContainers.Services.IdentityDB;User Id=sa;Password=Pass@word
+      - eureka__client__serviceUrl=http://eurekareg:8761/eureka     
+    ports:
+      - "5105:80"   # Important: In a production environment your should remove the external port (5101) kept here for microservice debugging purposes. 
+                    # The API Gateway redirects and access through the internal port (80).
+
+  eurekareg:
+    ports:
+      - "8761:8761"

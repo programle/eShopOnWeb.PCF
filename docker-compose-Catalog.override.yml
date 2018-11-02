@@ -16,30 +16,30 @@ services:
       - "15672:15672" 
       - "5672:5672"   
 
-  # catalog.api:
-  #   environment:
-  #     - ASPNETCORE_ENVIRONMENT=Development
-  #     - ASPNETCORE_URLS=http://0.0.0.0:80
-  #     - SqlServer__credentials__ConnectionString=${ESHOP_AZURE_CATALOG_DB:-Server=sql.data;Database=Microsoft.eShopOnContainers.Services.CatalogDb;User Id=sa;Password=Pass@word}
-  #     - PicBaseUrl=${ESHOP_AZURE_STORAGE_CATALOG_URL:-http://localhost:5101/api/v1/c/catalog/items/[0]/pic/}   #Local: You need to open your local dev-machine firewall at range 5100-5110.  
-  #     - rabbitmq__client__uri=amqp://guest:guest@rabbitmq:5672/
-  #     - eureka__client__serviceUrl=http://eurekareg:8761/eureka
-  #     # - eureka__client__shouldRegisterWithEureka=true
-  #     # - eureka__client__shouldFetchRegistry=false
-  #     # - eureka__client__ValidateCertificates=false
-  #     # - eureka__instance__hostname=localhost
-  #     # - eureka__instance__statusPageUrlPath=/cloudfoundryapplication/info
-  #     # - eureka__instance__healthCheckUrlPath=/cloudfoundryapplication/health
-  #     - AzureStorageAccountName=${ESHOP_AZURE_STORAGE_CATALOG_NAME}
-  #     - AzureStorageAccountKey=${ESHOP_AZURE_STORAGE_CATALOG_KEY}
-  #     - UseCustomizationData=True
-  #     - AzureServiceBusEnabled=False
-  #     - AzureStorageEnabled=False
-  #     - ApplicationInsights__InstrumentationKey=${INSTRUMENTATION_KEY}
-  #     - OrchestratorType=${ORCHESTRATOR_TYPE}
-  #   ports:
-  #     - "5101:80"   # Important: In a production environment your should remove the external port (5101) kept here for microservice debugging purposes. 
-  #                   # The API Gateway redirects and access through the internal port (80).
+  catalog.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:80
+      - SqlServer__credentials__ConnectionString=${ESHOP_AZURE_CATALOG_DB:-Server=sql.data;Database=Microsoft.eShopOnContainers.Services.CatalogDb;User Id=sa;Password=Pass@word}
+      - PicBaseUrl=${ESHOP_AZURE_STORAGE_CATALOG_URL:-http://localhost:5101/api/v1/c/catalog/items/[0]/pic/}   #Local: You need to open your local dev-machine firewall at range 5100-5110.  
+      - rabbitmq__client__uri=amqp://guest:guest@rabbitmq:5672/
+      - eureka__client__serviceUrl=http://eurekareg:8761/eureka
+      # - eureka__client__shouldRegisterWithEureka=true
+      # - eureka__client__shouldFetchRegistry=false
+      # - eureka__client__ValidateCertificates=false
+      # - eureka__instance__hostname=localhost
+      # - eureka__instance__statusPageUrlPath=/cloudfoundryapplication/info
+      # - eureka__instance__healthCheckUrlPath=/cloudfoundryapplication/health
+      - AzureStorageAccountName=${ESHOP_AZURE_STORAGE_CATALOG_NAME}
+      - AzureStorageAccountKey=${ESHOP_AZURE_STORAGE_CATALOG_KEY}
+      - UseCustomizationData=True
+      - AzureServiceBusEnabled=False
+      - AzureStorageEnabled=False
+      - ApplicationInsights__InstrumentationKey=${INSTRUMENTATION_KEY}
+      - OrchestratorType=${ORCHESTRATOR_TYPE}
+    ports:
+      - "5101:80"   # Important: In a production environment your should remove the external port (5101) kept here for microservice debugging purposes. 
+                    # The API Gateway redirects and access through the internal port (80).
 
   eurekareg:
     ports:

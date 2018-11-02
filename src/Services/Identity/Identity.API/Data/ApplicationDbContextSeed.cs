@@ -14,8 +14,6 @@ using System.Threading.Tasks;
 
 namespace Microsoft.eShopOnContainers.Services.Identity.API.Data
 {
-
-
     public class ApplicationDbContextSeed
     {
         private readonly IPasswordHasher<ApplicationUser> _passwordHasher = new PasswordHasher<ApplicationUser>();

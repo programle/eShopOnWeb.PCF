@@ -1,0 +1,18 @@
+version: '3.4'
+
+services:
+
+  sql.data:
+    image: microsoft/mssql-server-linux:2017-latest
+
+  identity.api:
+    image: eshop/identity.api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/Identity/Identity.API/Dockerfile
+    depends_on:
+      - sql.data
+      - eurekareg
+
+  eurekareg:
+    image: steeltoeoss/eurekaserver

@@ -13,6 +13,16 @@ services:
       - "15672:15672" 
       - "5672:5672"   
 
+  catalog.api:
+    image: eshop/catalog.api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/Catalog/Catalog.API/Dockerfile
+    depends_on:
+      - sql.data
+      - eurekareg
+      - rabbitmq    
+
   # catalog.api:
   #   environment:
   #     - ASPNETCORE_ENVIRONMENT=Development
