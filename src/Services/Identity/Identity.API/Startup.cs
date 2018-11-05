@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+ using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.eShopOnContainers.Services.Identity.API.Certificates;
 using Microsoft.eShopOnContainers.Services.Identity.API.Data;
 using Microsoft.eShopOnContainers.Services.Identity.API.Models;
@@ -36,12 +37,14 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
         {
             RegisterAppInsights(services);
 
+            var connectionString = Configuration["ConnectionString"];
+            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
+
             // Add framework services.
-            services.AddDbContext<ApplicationDbContext>(options =>
-             options.UseSqlServer(Configuration["ConnectionString"],
+            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString,
                                      sqlServerOptionsAction: sqlOptions =>
                                      {
-                                         sqlOptions.MigrationsAssembly(typeof(Startup).GetTypeInfo().Assembly.GetName().Name);
+                                         sqlOptions.MigrationsAssembly(migrationsAssembly);
                                          //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
                                          sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
                                      }));
@@ -76,9 +79,6 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
             services.AddTransient<ILoginService<ApplicationUser>, EFLoginService>();
             services.AddTransient<IRedirectService, RedirectService>();
 
-            var connectionString = Configuration["ConnectionString"];
-            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
-
             // Adds IdentityServer
             services.AddIdentityServer(x =>
             {
@@ -95,17 +95,20 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                                         sqlOptions.MigrationsAssembly(migrationsAssembly);
                                         //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
                                         sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-                                    });
+                                    }
+                                    );
             })
             .AddOperationalStore(options =>
                 {
-                    options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString,
+                    options.ConfigureDbContext = builder => builder.UseSqlServer(//Configuration
+                        connectionString,
                                     sqlServerOptionsAction: sqlOptions =>
                                     {
                                         sqlOptions.MigrationsAssembly(migrationsAssembly);
                                         //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
                                         sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-                                    });
+                                    }
+                                    );
                 })
             .Services.AddTransient<IProfileService, ProfileService>();
 
@@ -146,7 +149,6 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
             app.UseStaticFiles();
-
 
             // Make work identity server redirections in Edge and lastest versions of browers. WARN: Not valid in a production environment.
             app.Use(async (context, next) =>

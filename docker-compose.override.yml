@@ -74,9 +74,7 @@ services:
       - ASPNETCORE_URLS=http://0.0.0.0:80
       - ConnectionStrings__CatalogConnection=Server=sql.data;Database=Microsoft.eShopOnWeb.CatalogDb;User Id=sa;Password=Pass@word
       - ConnectionStrings__IdentityConnection=Server=sql.data;Database=Microsoft.eShopOnWeb.Identity;User Id=sa;Password=Pass@word
-      # - PicBaseUrl=http://localhost:5101/api/v1/catalog/items/[0]/pic/
       - CatalogBaseUrl=http://catalog.api/
-      # - rabbitmq__client__uri=amqp://guest:guest@rabbitmq:5672/
       - eureka__client__serviceUrl=http://eurekareg:8761/eureka
     ports:
       - "5100:80"

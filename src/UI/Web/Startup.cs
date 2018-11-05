@@ -42,9 +42,9 @@ namespace Microsoft.eShopWeb.Web
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddIdentity<ApplicationUser, IdentityRole>()
-                .AddEntityFrameworkStores<AppIdentityDbContext>()
-                .AddDefaultTokenProviders();
+            // services.AddIdentity<ApplicationUser, IdentityRole>()
+            //     .AddEntityFrameworkStores<AppIdentityDbContext>()
+            //     .AddDefaultTokenProviders();
 
             services.ConfigureApplicationCookie(options =>
             {
@@ -59,7 +59,7 @@ namespace Microsoft.eShopWeb.Web
             });
 
             services.AddDbContext<CatalogContext>(c => c.UseInMemoryDatabase("Catalog"));
-            services.AddDbContext<AppIdentityDbContext>(c => c.UseInMemoryDatabase("Identity"));
+            //services.AddDbContext<AppIdentityDbContext>(c => c.UseInMemoryDatabase("Identity"));
 
             services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
             services.AddScoped(typeof(IAsyncRepository<>), typeof(EfRepository<>));
@@ -96,7 +96,7 @@ namespace Microsoft.eShopWeb.Web
             //services.AddHttpClient<ICatalogService, CatalogService>();
 
             services.AddMvc();
-            //services.AddCustomAuthentication(Configuration);
+            services.AddCustomAuthentication(Configuration);
 
             services.AddCloudFoundryActuators(Configuration);
             services.AddDiscoveryClient(Configuration);

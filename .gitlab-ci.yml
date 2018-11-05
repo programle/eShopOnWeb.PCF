@@ -42,6 +42,25 @@ build_job_catalog:
         exit 1
       fi;
   allow_failure: true
+  
+build_job_identity:
+  stage: build
+  artifacts:
+    paths:
+      - 'src/Services/Identity/Identity.API/bin/Debug/netcoreapp2.1/publish'
+  script:
+    - |
+      if git diff HEAD~ --name-only|grep src/Services/Identity/; then
+        pwd
+        cd src/Services/Identity/Identity.API
+        dotnet restore
+        dotnet build
+        dotnet publish
+      else
+        echo "Skipping Identity.API build coz no change was detected in the Identity.API project"
+        exit 1
+      fi;
+  allow_failure: true
 
 test_job_web:
   stage: test
@@ -108,4 +127,22 @@ deploy_job_catalog:
   dependencies:
     - build_job_catalog
     - test_job_catalog
+  allow_failure: true
+
+deploy_job_identity:
+  stage: deploy
+  artifacts:
+    paths:
+      - 'src/Services/Identity/Identity.API/bin/Debug/netcoreapp2.1/publish'
+  script:
+    - |
+      if git diff HEAD~ --name-only|grep src/Services/Identity/; then
+        cf login -a https://api.run.pivotal.io -u $CF_USERNAME -p $CF_PASSWORD -o NTTD-PCF-RG-org -s eshop
+        cf push -f manifest-Identity.yml
+      else
+        echo "Skipping Identity.API deploy coz no change was detected in the Identity.API project"
+        exit 1
+      fi;
+  dependencies:
+    - build_job_identity
   allow_failure: true

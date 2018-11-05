@@ -103,29 +103,29 @@ namespace Microsoft.eShopWeb.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SendVerificationEmail(IndexViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model);
-            }
+        // [HttpPost]
+        // [ValidateAntiForgeryToken]
+        // public async Task<IActionResult> SendVerificationEmail(IndexViewModel model)
+        // {
+        //     if (!ModelState.IsValid)
+        //     {
+        //         return View(model);
+        //     }
 
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-            {
-                throw new ApplicationException($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
-            }
+        //     var user = await _userManager.GetUserAsync(User);
+        //     if (user == null)
+        //     {
+        //         throw new ApplicationException($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
+        //     }
 
-            var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var callbackUrl = Url.EmailConfirmationLink(user.Id, code, Request.Scheme);
-            var email = user.Email;
-            await _emailSender.SendEmailConfirmationAsync(email, callbackUrl);
+        //     var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        //     var callbackUrl = Url.EmailConfirmationLink(user.Id, code, Request.Scheme);
+        //     var email = user.Email;
+        //     await _emailSender.SendEmailConfirmationAsync(email, callbackUrl);
 
-            StatusMessage = "Verification email sent. Please check your email.";
-            return RedirectToAction(nameof(Index));
-        }
+        //     StatusMessage = "Verification email sent. Please check your email.";
+        //     return RedirectToAction(nameof(Index));
+        // }
 
         [HttpGet]
         public async Task<IActionResult> ChangePassword()
