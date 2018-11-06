@@ -83,6 +83,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EventBusServiceBus", "src\B
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntegrationEventLogEF", "src\BuildingBlocks\EventBus\IntegrationEventLogEF\IntegrationEventLogEF.csproj", "{73411E87-8D7E-4DC0-B16A-E73B387FF27C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Identity", "Identity", "{B0099C71-7051-4EEF-A2C3-00E15DDD959E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Identity.API", "src\Services\Identity\Identity.API\Identity.API.csproj", "{F19A8DA2-54A4-4C74-890B-A243773FFB20}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -184,6 +188,10 @@ Global
 		{73411E87-8D7E-4DC0-B16A-E73B387FF27C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{73411E87-8D7E-4DC0-B16A-E73B387FF27C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{73411E87-8D7E-4DC0-B16A-E73B387FF27C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F19A8DA2-54A4-4C74-890B-A243773FFB20}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F19A8DA2-54A4-4C74-890B-A243773FFB20}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F19A8DA2-54A4-4C74-890B-A243773FFB20}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F19A8DA2-54A4-4C74-890B-A243773FFB20}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -224,6 +232,8 @@ Global
 		{FFF3C993-59C2-491A-907A-D0FBE3A4D77A} = {419A6ACE-0419-4315-A6FB-B0E63D39432E}
 		{511DD06F-BA8C-4FE8-B6FA-6F4C8A6AD40F} = {419A6ACE-0419-4315-A6FB-B0E63D39432E}
 		{73411E87-8D7E-4DC0-B16A-E73B387FF27C} = {419A6ACE-0419-4315-A6FB-B0E63D39432E}
+		{B0099C71-7051-4EEF-A2C3-00E15DDD959E} = {CF991970-4D9F-4D54-8C8A-9F501B499CCC}
+		{F19A8DA2-54A4-4C74-890B-A243773FFB20} = {B0099C71-7051-4EEF-A2C3-00E15DDD959E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {49813262-5DA3-4D61-ABD3-493C74CE8C2B}

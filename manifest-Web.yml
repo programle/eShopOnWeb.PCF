@@ -3,5 +3,9 @@ applications:
 - name: eshop-web-mono
   instances: 1
   path: src/UI/Web/bin/Debug/netcoreapp2.1/publish
+  env:
+    CatalogBaseUrl: https://eshop-catalog-api.cfapps.io/
+    IdentityUrl: https://eshop-identity-api.cfapps.io/
+    CallbackUrl: https://eshop-web-mono.cfapps.io/
   services:
   - Eureka

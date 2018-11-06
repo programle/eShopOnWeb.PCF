@@ -111,7 +111,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API.Configuration
                     PostLogoutRedirectUris = new List<string>
                     {
                         $"{clientsUrl["Mvc"]}/signout-callback-oidc"
-                    },
+                    },                    
                     AllowedScopes = new List<string>
                     {
                         IdentityServerConstants.StandardScopes.OpenId,

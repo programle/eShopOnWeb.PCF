@@ -4,6 +4,7 @@ applications:
   instances: 1
   path: src/Services/Identity/Identity.API/bin/Debug/netcoreapp2.1/publish
   env:
+    MvcClient: https://eshop-web-mono.cfapps.io
     ConnectionString: Server=pivotalcloudfoundry-appdev.czvirbruk2y4.us-east-1.rds.amazonaws.com,1433;Initial Catalog=Microsoft.eShopOnContainers.Services.IdentityDB;User Id=pcfuser;Password=NttData99
   services:
   - Eureka

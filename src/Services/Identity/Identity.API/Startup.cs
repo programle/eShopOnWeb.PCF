@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
- using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.eShopOnContainers.Services.Identity.API.Certificates;
 using Microsoft.eShopOnContainers.Services.Identity.API.Data;
@@ -15,11 +15,17 @@ using Microsoft.eShopOnContainers.Services.Identity.API.Models;
 using Microsoft.eShopOnContainers.Services.Identity.API.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.HealthChecks;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System;
 using System.Reflection;
+using Steeltoe.Management.CloudFoundry;
+using Steeltoe.Management.Endpoint.CloudFoundry;
+using Steeltoe.Common.HealthChecks;
+using Steeltoe.Management.Endpoint.Info;
+using Pivotal.Discovery.Client;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace Microsoft.eShopOnContainers.Services.Identity.API
 {
@@ -56,6 +62,7 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
             services.Configure<AppSettings>(Configuration);
 
             services.AddMvc();
+            services.AddDiscoveryClient(Configuration);                
 
             if (Configuration.GetValue<string>("IsClusterEnv") == bool.TrueString)
             {
@@ -65,16 +72,6 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                 })
                 .PersistKeysToRedis(ConnectionMultiplexer.Connect(Configuration["DPConnectionString"]), "DataProtection-Keys");
             }
-
-            services.AddHealthChecks(checks =>
-            {
-                var minutes = 1;
-                if (int.TryParse(Configuration["HealthCheck:Timeout"], out var minutesParsed))
-                {
-                    minutes = minutesParsed;
-                }
-                checks.AddSqlCheck("Identity_Db", Configuration["ConnectionString"], TimeSpan.FromMinutes(minutes));
-            });
 
             services.AddTransient<ILoginService<ApplicationUser>, EFLoginService>();
             services.AddTransient<IRedirectService, RedirectService>();
@@ -112,6 +109,8 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                 })
             .Services.AddTransient<IProfileService, ProfileService>();
 
+            services.AddCloudFoundryActuators(Configuration);
+
             var container = new ContainerBuilder();
             container.Populate(services);
 
@@ -143,7 +142,6 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                 app.UsePathBase(pathBase);
             }
 
-
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
             app.Map("/liveness", lapp => lapp.Run(async ctx => ctx.Response.StatusCode = 200));
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
@@ -153,11 +151,20 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
             // Make work identity server redirections in Edge and lastest versions of browers. WARN: Not valid in a production environment.
             app.Use(async (context, next) =>
             {
-                context.Response.Headers.Add("Content-Security-Policy", "script-src 'unsafe-inline'");
+                context.Response.Headers.Add("Content-Security-Policy", "script-src 'unsafe-inline'");            
                 await next();
             });
 
-            app.UseForwardedHeaders();
+            var forwardOptions = new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+                RequireHeaderSymmetry = false
+            };
+
+            forwardOptions.KnownNetworks.Clear();
+            forwardOptions.KnownProxies.Clear();
+
+            app.UseForwardedHeaders(forwardOptions);
             // Adds IdentityServer
             app.UseIdentityServer();
 
@@ -167,6 +174,8 @@ namespace Microsoft.eShopOnContainers.Services.Identity.API
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
+            app.UseCloudFoundryActuators();
+            app.UseDiscoveryClient();
         }
 
         private void RegisterAppInsights(IServiceCollection services)
