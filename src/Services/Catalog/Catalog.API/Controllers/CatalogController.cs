@@ -1,34 +1,38 @@
-﻿using Catalog.API.IntegrationEvents;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.eShopOnContainers.Services.Catalog.API.Infrastructure;
-using Microsoft.eShopOnContainers.Services.Catalog.API.IntegrationEvents.Events;
-using Microsoft.eShopOnContainers.Services.Catalog.API.Model;
-using Microsoft.eShopOnContainers.Services.Catalog.API.ViewModel;
-using Microsoft.Extensions.Options;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+
+using Microsoft.eShopOnContainers.Services.Catalog.API.IntegrationEvents.Events;
+using Microsoft.eShopOnContainers.Services.Catalog.API.Model;
+using Microsoft.eShopOnContainers.Services.Catalog.API.ViewModel;
+
+using Catalog.API.IntegrationEvents;
+using Catalog.API.Model;
+using Microsoft.Extensions.Caching.Distributed;
+
 namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
 {
     [Route("api/v1/[controller]")]
     [ApiController]
-    public class CatalogController : ControllerBase
+    public class CatalogController : Controller
     {
-        private readonly CatalogContext _catalogContext;
-        private readonly CatalogSettings _settings;
+        private readonly CatalogSettings _settings;        
         private readonly ICatalogIntegrationEventService _catalogIntegrationEventService;
 
-        public CatalogController(CatalogContext context, IOptionsSnapshot<CatalogSettings> settings, ICatalogIntegrationEventService catalogIntegrationEventService)
-        {
-            _catalogContext = context ?? throw new ArgumentNullException(nameof(context));
+        private readonly CachedCatalogService _catalogService;
+        
+
+        public CatalogController(ICachedCatalogService catalogService, IOptionsSnapshot<CatalogSettings> settings,
+           ICatalogIntegrationEventService catalogIntegrationEventService)
+        {            
+            _catalogService = catalogService is CachedCatalogService ? (catalogService as CachedCatalogService) : null;
             _catalogIntegrationEventService = catalogIntegrationEventService ?? throw new ArgumentNullException(nameof(catalogIntegrationEventService));
             _settings = settings.Value;
-
-            ((DbContext)context).ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
         }
 
         // GET api/v1/[controller]/items[?pageSize=3&pageIndex=10]
@@ -38,47 +42,23 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(IEnumerable<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> Items([FromQuery]int pageSize = 10, [FromQuery]int pageIndex = 0, [FromQuery] string ids = null)
         {
-            if (!string.IsNullOrEmpty(ids))
+            var cacheFilter = new CacheCatalogFilter { Key = $"{Request.Path.Value}{Request.QueryString}", PageSize = pageSize, PageIndex = pageIndex };
+
+
+            var pageItemsValue = await _catalogService.ListAsync(ids, null, cacheFilter);
+
+            if (pageItemsValue == null)
             {
-                return GetItemsByIds(ids);
+                return BadRequest("Ids value invalid. Must be comma-separated list of numbers.");
             }
 
-            var totalItems = await _catalogContext.CatalogItems
-                .LongCountAsync();
+            var itemsOnPage = ChangeUriPlaceholder(pageItemsValue.ToList());
 
-            var itemsOnPage = await _catalogContext.CatalogItems
-                .OrderBy(c => c.Name)
-                .Skip(pageSize * pageIndex)
-                .Take(pageSize)
-                .ToListAsync();
-
-            itemsOnPage = ChangeUriPlaceholder(itemsOnPage);
-
-            var model = new PaginatedItemsViewModel<CatalogItem>(
-                pageIndex, pageSize, totalItems, itemsOnPage);
+            var model = new PaginatedItemsViewModel<CatalogItem>(pageIndex, pageSize, (await _catalogService.ListAllAsync()).LongCount(), itemsOnPage);
 
             return Ok(model);
         }
 
-        private IActionResult GetItemsByIds(string ids)
-        {
-            var numIds = ids.Split(',')
-                .Select(id => (Ok: int.TryParse(id, out int x), Value: x));
-
-            if (!numIds.All(nid => nid.Ok))
-            {
-                return BadRequest("ids value invalid. Must be comma-separated list of numbers");
-            }
-
-            var idsToSelect = numIds
-                .Select(id => id.Value);
-
-            var items = _catalogContext.CatalogItems.Where(ci => idsToSelect.Contains(ci.Id)).ToList();
-
-            items = ChangeUriPlaceholder(items);
-
-            return Ok(items);
-        }
 
         [HttpGet]
         [Route("items/{id:int}")]
@@ -91,15 +71,16 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
                 return BadRequest();
             }
 
-            var item = await _catalogContext.CatalogItems.SingleOrDefaultAsync(ci => ci.Id == id);
+            var singleItemValue = await _catalogService.GetSingleBySpecAsync(new CatalogFilterSpecification(id), 
+                new CacheCatalogFilter() { Key = Request.Path.Value });
 
             var baseUri = _settings.PicBaseUrl;
             var azureStorageEnabled = _settings.AzureStorageEnabled;
-            item.FillProductUrl(baseUri, azureStorageEnabled: azureStorageEnabled);
+            singleItemValue.FillProductUrl(baseUri, azureStorageEnabled: azureStorageEnabled);
 
-            if (item != null)
+            if (singleItemValue != null)
             {
-                return Ok(item);
+                return Ok(singleItemValue);
             }
 
             return NotFound();
@@ -112,20 +93,12 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         public async Task<IActionResult> Items(string name, [FromQuery]int pageSize = 10, [FromQuery]int pageIndex = 0)
         {
 
-            var totalItems = await _catalogContext.CatalogItems
-                .Where(c => c.Name.StartsWith(name))
-                .LongCountAsync();
+            var cacheFilter = new CacheCatalogFilter { Key = $"{Request.Path.Value}{Request.QueryString}", PageSize = pageSize, PageIndex = pageIndex };
 
-            var itemsOnPage = await _catalogContext.CatalogItems
-                .Where(c => c.Name.StartsWith(name))
-                .Skip(pageSize * pageIndex)
-                .Take(pageSize)
-                .ToListAsync();
+            var filteredItemsValue = await _catalogService.ListAsync(new CatalogFilterSpecification(name), cacheFilter);
+            var itemsOnPage = ChangeUriPlaceholder(filteredItemsValue.ToList());
 
-            itemsOnPage = ChangeUriPlaceholder(itemsOnPage);
-
-            var model = new PaginatedItemsViewModel<CatalogItem>(
-                pageIndex, pageSize, totalItems, itemsOnPage);
+            var model = new PaginatedItemsViewModel<CatalogItem>(pageIndex, pageSize, (await _catalogService.ListAllAsync()).LongCount(), itemsOnPage);
 
             return Ok(model);
         }
@@ -136,55 +109,31 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(PaginatedItemsViewModel<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> Items(int catalogTypeId, int? catalogBrandId, [FromQuery]int pageSize = 10, [FromQuery]int pageIndex = 0)
         {
-            var root = (IQueryable<CatalogItem>)_catalogContext.CatalogItems;
+            var catalogSpec = new CatalogFilterSpecification(catalogTypeId, catalogBrandId);
+            var cacheFilter = new CacheCatalogFilter { Key = $"{Request.Path.Value}{Request.QueryString}", PageSize = pageSize, PageIndex = pageIndex };
 
-            root = root.Where(ci => ci.CatalogTypeId == catalogTypeId);
-
-            if (catalogBrandId.HasValue)
-            {
-                root = root.Where(ci => ci.CatalogBrandId == catalogBrandId);
-            }
-
-            var totalItems = await root
-                .LongCountAsync();
-
-            var itemsOnPage = await root
-                .Skip(pageSize * pageIndex)
-                .Take(pageSize)
-                .ToListAsync();
-
-            itemsOnPage = ChangeUriPlaceholder(itemsOnPage);
+            var filteredItemsValue = await _catalogService.ListAsync(catalogSpec, cacheFilter);
+            var itemsOnPage = ChangeUriPlaceholder(filteredItemsValue.ToList());
 
             var model = new PaginatedItemsViewModel<CatalogItem>(
-                pageIndex, pageSize, totalItems, itemsOnPage);
+                pageIndex, pageSize, (await _catalogService.ListAllAsync()).LongCount(), itemsOnPage);
 
             return Ok(model);
         }
+
         // GET api/v1/[controller]/items/type/all/brand[?pageSize=3&pageIndex=10]
         [HttpGet]
         [Route("[action]/type/all/brand/{catalogBrandId:int?}")]
         [ProducesResponseType(typeof(PaginatedItemsViewModel<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> Items(int? catalogBrandId, [FromQuery]int pageSize = 10, [FromQuery]int pageIndex = 0)
         {
-            var root = (IQueryable<CatalogItem>)_catalogContext.CatalogItems;
+            var catalogSpec = new CatalogFilterSpecification(null, catalogBrandId);
+            var cacheFilter = new CacheCatalogFilter { Key = $"{Request.Path.Value}{Request.QueryString}", PageSize = pageSize, PageIndex = pageIndex };
 
-            if (catalogBrandId.HasValue)
-            {
-                root = root.Where(ci => ci.CatalogBrandId == catalogBrandId);
-            }
+            var filteredItemsValue = await _catalogService.ListAsync(catalogSpec, cacheFilter);
+            var itemsOnPage = ChangeUriPlaceholder(filteredItemsValue.ToList());
 
-            var totalItems = await root
-                .LongCountAsync();
-
-            var itemsOnPage = await root
-                .Skip(pageSize * pageIndex)
-                .Take(pageSize)
-                .ToListAsync();
-
-            itemsOnPage = ChangeUriPlaceholder(itemsOnPage);
-
-            var model = new PaginatedItemsViewModel<CatalogItem>(
-                pageIndex, pageSize, totalItems, itemsOnPage);
+            var model = new PaginatedItemsViewModel<CatalogItem>(pageIndex, pageSize, (await _catalogService.ListAllAsync()).LongCount(), itemsOnPage);
 
             return Ok(model);
         }
@@ -195,10 +144,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(List<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> CatalogTypes()
         {
-            var items = await _catalogContext.CatalogTypes
-                .ToListAsync();
-
-            return Ok(items);
+            var totalCatalogTypes = await _catalogService.ListAllCatalogTypeAsync();
+            return Ok(totalCatalogTypes);
         }
 
         // GET api/v1/[controller]/CatalogBrands
@@ -207,10 +154,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType(typeof(List<CatalogItem>), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> CatalogBrands()
         {
-            var items = await _catalogContext.CatalogBrands
-                .ToListAsync();
-
-            return Ok(items);
+            var totalCatalogBrands = await _catalogService.ListAllCatalogBrandAsync();
+            return Ok(totalCatalogBrands);
         }
 
         //PUT api/v1/[controller]/items
@@ -218,28 +163,29 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [HttpPut]
         [ProducesResponseType((int)HttpStatusCode.NotFound)]
         [ProducesResponseType((int)HttpStatusCode.Created)]
-        public async Task<IActionResult> UpdateProduct([FromBody]CatalogItem productToUpdate)
+        public async Task<IActionResult> UpdateProduct([FromBody]CatalogItem itemToUpdate)
         {
-            var catalogItem = await _catalogContext.CatalogItems
-                .SingleOrDefaultAsync(i => i.Id == productToUpdate.Id);
+            List<CatalogItem> totalCatalogItems = (await _catalogService.ListAllAsync()).ToList();
+
+            var catalogItem = totalCatalogItems.SingleOrDefault(i => i.Id == itemToUpdate.Id);
 
             if (catalogItem == null)
             {
-                return NotFound(new { Message = $"Item with id {productToUpdate.Id} not found." });
+                return NotFound(new { Message = $"Item with id {itemToUpdate.Id} not found." });
             }
 
             var oldPrice = catalogItem.Price;
-            var raiseProductPriceChangedEvent = oldPrice != productToUpdate.Price;
+            var PriceChanged = oldPrice != itemToUpdate.Price;
 
 
             // Update current product
-            catalogItem = productToUpdate;
-            _catalogContext.CatalogItems.Update(catalogItem);
+            catalogItem = itemToUpdate;
 
-            if (raiseProductPriceChangedEvent) // Save product's data and publish integration event through the Event Bus if price has changed
+            if (PriceChanged) // Save product's data and publish integration event through the Event Bus if price has changed
             {
+                await _catalogService.UpdateAsync(catalogItem, false);
                 //Create Integration Event to be published through the Event Bus
-                var priceChangedEvent = new ProductPriceChangedIntegrationEvent(catalogItem.Id, productToUpdate.Price, oldPrice);
+                var priceChangedEvent = new ProductPriceChangedIntegrationEvent(catalogItem.Id, itemToUpdate.Price, oldPrice);
 
                 // Achieving atomicity between original Catalog database operation and the IntegrationEventLog thanks to a local transaction
                 await _catalogIntegrationEventService.SaveEventAndCatalogContextChangesAsync(priceChangedEvent);
@@ -249,10 +195,10 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
             }
             else // Just save the updated product because the Product's Price hasn't changed.
             {
-                await _catalogContext.SaveChangesAsync();
+                await _catalogService.UpdateAsync(catalogItem, true);
             }
 
-            return CreatedAtAction(nameof(GetItemById), new { id = productToUpdate.Id }, null);
+            return CreatedAtAction(nameof(GetItemById), new { id = itemToUpdate.Id }, null);
         }
 
         //POST api/v1/[controller]/items
@@ -270,9 +216,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
                 PictureFileName = product.PictureFileName,
                 Price = product.Price
             };
-            _catalogContext.CatalogItems.Add(item);
 
-            await _catalogContext.SaveChangesAsync();
+            item = await _catalogService.AddAsync(item, true);            
 
             return CreatedAtAction(nameof(GetItemById), new { id = item.Id }, null);
         }
@@ -283,16 +228,12 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
         [ProducesResponseType((int)HttpStatusCode.NoContent)]
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            var product = _catalogContext.CatalogItems.SingleOrDefault(x => x.Id == id);
+            bool? result = await _catalogService.DeleteAsync(id, true);
 
-            if (product == null)
+            if (!result.HasValue)
             {
                 return NotFound();
             }
-
-            _catalogContext.CatalogItems.Remove(product);
-
-            await _catalogContext.SaveChangesAsync();
 
             return NoContent();
         }

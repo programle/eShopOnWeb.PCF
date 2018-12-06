@@ -7,11 +7,9 @@ services:
       - ACCEPT_EULA=Y
     ports:
       - "5433:1433"   
-
-  cache:
+  redis:
     ports: 
-      - "6379:6379"
-
+      - "6878:6379"
   rabbitmq:
     ports:
       - "15672:15672" 

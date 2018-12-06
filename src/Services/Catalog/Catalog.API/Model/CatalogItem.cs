@@ -1,12 +1,11 @@
-﻿using Catalog.API.Infrastructure.Exceptions;
-using System;
+﻿using System;
+using Catalog.API.Infrastructure.Exceptions;
 
 namespace Microsoft.eShopOnContainers.Services.Catalog.API.Model
 {
-    public class CatalogItem
+    [Serializable]
+    public class CatalogItem : BaseEntity
     {
-        public int Id { get; set; }
-
         public string Name { get; set; }
 
         public string Description { get; set; }

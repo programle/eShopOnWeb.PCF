@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.eShopOnContainers.Services.Catalog.API.Infrastructure;
-using System.IO;
+﻿using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
+
+using Catalog.API.Model;
 
 // For more information on enabling MVC for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -13,13 +15,18 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
     public class PicController : Controller
     {
         private readonly IHostingEnvironment _env;
-        private readonly CatalogContext _catalogContext;
 
-        public PicController(IHostingEnvironment env,
-            CatalogContext catalogContext)
+        private readonly CachedCatalogService _catalogService;
+
+        public PicController(IHostingEnvironment env)
         {
             _env = env;
-            _catalogContext = catalogContext;
+        }
+
+        public PicController(ICatalogService catalogService, IHostingEnvironment env)
+        {
+            _env = env;
+            _catalogService = catalogService is CachedCatalogService ? (catalogService as CachedCatalogService) : null;
         }
 
         [HttpGet]
@@ -34,8 +41,9 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API.Controllers
                 return BadRequest();
             }
 
-            var item = await _catalogContext.CatalogItems
-                .SingleOrDefaultAsync(ci => ci.Id == catalogItemId);
+            var totalCatalogItems = await _catalogService.ListAllAsync();
+
+            var item = totalCatalogItems.Where(ci => ci.Id == catalogItemId).SingleOrDefault();
 
             if (item != null)
             {

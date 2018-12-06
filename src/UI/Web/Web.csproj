@@ -4,6 +4,13 @@
 		<TargetFramework>netcoreapp2.1</TargetFramework>
 		<RootNamespace>Microsoft.eShopWeb.Web</RootNamespace>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="wwwroot\**" />
+	  <Content Remove="wwwroot\**" />
+	  <EmbeddedResource Remove="wwwroot\**" />
+	  <None Remove="wwwroot\**" />
+	</ItemGroup>
         
 	<ItemGroup>
 		<PackageReference Include="Dapper" Version="1.50.5" />
@@ -16,25 +23,10 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Views\Catalog\" />
-		<Folder Include="wwwroot\fonts\" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\ApplicationCore\ApplicationCore.csproj" />
 		<ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
-	</ItemGroup>
-	<ItemGroup>
-		<None Include="wwwroot\images\products\1.png" />
-		<None Include="wwwroot\images\products\10.png" />
-		<None Include="wwwroot\images\products\11.png" />
-		<None Include="wwwroot\images\products\12.png" />
-		<None Include="wwwroot\images\products\2.png" />
-		<None Include="wwwroot\images\products\3.png" />
-		<None Include="wwwroot\images\products\4.png" />
-		<None Include="wwwroot\images\products\5.png" />
-		<None Include="wwwroot\images\products\6.png" />
-		<None Include="wwwroot\images\products\7.png" />
-		<None Include="wwwroot\images\products\8.png" />
-		<None Include="wwwroot\images\products\9.png" />
 	</ItemGroup>
 	<ItemGroup>
 		<Content Update="appsettings.json">

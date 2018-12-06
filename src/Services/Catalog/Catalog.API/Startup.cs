@@ -1,4 +1,7 @@
-﻿using Autofac;
+﻿using System;
+using System.Data.Common;
+
+using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using global::Catalog.API.Infrastructure.Filters;
 using global::Catalog.API.IntegrationEvents;
@@ -9,7 +12,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.ServiceBus;
-//using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.eShopOnContainers.BuildingBlocks.EventBus;
 using Microsoft.eShopOnContainers.BuildingBlocks.EventBus.Abstractions;
@@ -22,20 +24,17 @@ using Microsoft.eShopOnContainers.Services.Catalog.API.IntegrationEvents.EventHa
 using Microsoft.eShopOnContainers.Services.Catalog.API.IntegrationEvents.Events;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-//using Microsoft.Extensions.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Pivotal.Discovery.Client;
 using RabbitMQ.Client;
-using System;
-using System.Data.Common;
-using System.Reflection;
+
 using Steeltoe.CloudFoundry.Connector.SqlServer.EFCore;
 using Steeltoe.Management.CloudFoundry;
-using Steeltoe.Management.Endpoint.CloudFoundry;
-using Steeltoe.Common.HealthChecks;
-using Steeltoe.Management.Endpoint.Info;
 using Steeltoe.CloudFoundry.Connector.RabbitMQ;
+using Steeltoe.CloudFoundry.Connector.Redis;
+
+using Catalog.API.Model;
 
 namespace Microsoft.eShopOnContainers.Services.Catalog.API
 {
@@ -56,16 +55,23 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API
                 .AddCustomOptions(Configuration)
                 .AddIntegrationServices(Configuration)
                 .AddEventBus(Configuration)
-                .AddDiscoveryClient(Configuration) 
-                .AddRabbitMQConnection(Configuration)               
-                .AddSwagger();
+                .AddDiscoveryClient(Configuration)
+                .AddRabbitMQConnection(Configuration)
+                .AddSwagger()
+                .AddDistributedRedisCache(Configuration);
 
             services.AddCloudFoundryActuators(Configuration);
 
-            var container = new ContainerBuilder();
-            container.Populate(services);
-            return new AutofacServiceProvider(container.Build());
+            services.AddScoped(typeof(IRepository<>), typeof(EFRepository<>));            
+            services.AddScoped<ICachedCatalogService, CachedCatalogService>();            
+            services.AddScoped<ICatalogItemRepository, CatalogItemRepository>();            
+            services.AddScoped<CatalogService>();
 
+            var container = new ContainerBuilder();
+
+            container.Populate(services);
+
+            return new AutofacServiceProvider(container.Build());
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
